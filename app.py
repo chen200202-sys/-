@@ -5,8 +5,6 @@ import requests
 st.set_page_config(page_title="AI Agent - Chen", page_icon="🤖")
 st.title("ברוך הבא אל הסוכן החכם של עמיחי וחן 🤖")
 
-# הגדרות חיבור
-# שימי כאן את המפתח שמתחיל ב-sk-std-
 API_KEY = "enter your key here"
 URL = "https://server.iac.ac.il/api/v1/studentapi/responses"
 
@@ -46,7 +44,7 @@ if prompt := st.chat_input("מה תרצו לשאול את הסוכן?"):
 
                 # מעבר על כל חלקי התשובה
                 for item in result:
-                    # אנחנו מחפשים הודעה מה-assistant
+                    
                     if isinstance(item, dict) and item.get("type") == "message":
                         content_list = item.get("content", [])
                         for content_block in content_list:
