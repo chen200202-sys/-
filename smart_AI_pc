@@ -1,0 +1,52 @@
+import requests
+
+API_KEY = "sk-std-1XKR19w99VWY5dPm2TZbuJ-Fx8eti8YDGoBEyXlBVbs"
+URL = "https://server.iac.ac.il/api/v1/studentapi/responses"
+headers = {"Authorization": f"Bearer {API_KEY}"}
+
+print("--- סוכן ה-AI של חן ועמיחי - אל דאגה אני הכי חכם שיש בשוק ---")
+chat_history = ""
+
+while True:
+    user_query = input("\nשאלה: ")
+    if user_query.lower() == 'עצירה': break
+
+    full_input = f"{chat_history}\nUser: {user_query}"
+
+    payload = {
+        "model": "gpt-5-nano",
+        "instructions": "ענה בעברית קצרה ולעניין. אל תציג מקורות, אל תציג לינקים ואל תוסיף סיכומים בסוף. ענה רק על מה שנשאל בצורה נקייה.",
+        "input": full_input,
+        "tools": [{"type": "web_search"}],
+        "reasoning": {"effort": "low"}
+    }
+
+    print("🔎 מחפש תשובה, חכו אל תצאו ממני")
+
+    try:
+        response = requests.post(URL, json=payload, headers=headers)
+
+        if response.status_code == 200:
+            result = response.json()
+            steps = result.get("output", []) if isinstance(result, dict) else result
+
+            final_answer = ""
+            if isinstance(steps, list):
+                for step in steps:
+                    if isinstance(step, dict) and step.get("type") == "message":
+                        for content_item in step.get("content", []):
+                            if content_item.get("type") == "output_text":
+                                # ניקוי נוסף למקרה שהסוכן בכל זאת דחף סוגריים עם לינקים
+                                raw_text = content_item.get("text", "")
+                                final_answer = raw_text.split("([")[0].split("(http")[0].strip()
+
+            if final_answer:
+                print(f"בינה מלאכותית: {final_answer}")
+                chat_history += f"\nUser: {user_query}\nAI: {final_answer}"
+            else:
+                print(f"לא נמצאה תשובה.")
+        else:
+            print(f"שגיאת שרת: {response.status_code}")
+
+    except Exception as e:
+        print(f"שגיאה: {e}")
