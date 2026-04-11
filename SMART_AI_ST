@@ -18,11 +18,8 @@ for message in st.session_state.messages:
 
 def scrub_sources(text):
     if not text: return ""
-    # מוחק לינקים בסוגריים
     text = re.sub(r'\(https?://\S+\)', '', text)
-    # מוחק סוגריים מרובעים
     text = re.sub(r'\[.*?\]', '', text)
-    # מוחק סוגריים בודדים שנשארים לפעמים בתחילת או סוף משפט
     text = text.replace("()", "").replace("( )", "")
     text = text.strip().lstrip(')').rstrip('(')
     return text.strip()
