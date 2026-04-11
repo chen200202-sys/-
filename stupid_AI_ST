@@ -1,0 +1,76 @@
+import streamlit as st
+import requests
+import re
+
+st.set_page_config(page_title="הסוכן של עמיחי וחן", page_icon="💻")
+
+st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>💻 הסוכן של עמיחי וחן</h1>", unsafe_allow_html=True)
+st.markdown("---")
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+for message in st.session_state.messages:
+    avatar_icon = "👤" if message["role"] == "user" else "🤖"
+    with st.chat_message(message["role"], avatar=avatar_icon):
+        st.markdown(message["content"])
+
+def clean_ai_response(text):
+    if not text: return ""
+    clean_text = re.sub(r'\(https?://\S+\)', '', text)
+    clean_text = re.sub(r'\[.*?\]', '', clean_text)
+    return clean_text.strip()
+
+
+# קבלת קלט מהמשתמש
+if prompt := st.chat_input("(: קדימה! אתגרו אותי"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user", avatar="👤"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant", avatar="🤖"):
+        message_placeholder = st.empty()
+        quota_placeholder = st.empty()
+
+        message_placeholder.markdown("🔎 מחפש תשובה ")
+
+        API_KEY = "sk-std-1XKR19w99VWY5dPm2TZbuJ-Fx8eti8YDGoBEyXlBVbs"
+        URL = "https://server.iac.ac.il/api/v1/studentapi/responses"
+        headers = {"Authorization": f"Bearer {API_KEY}"
+        payload = {
+            "model": "gpt-5-nano",
+            "instructions": "ענה בעברית קצרה. אל תציג מקורות או לינקים. ענה רק על מה שנשאל עכשיו.",
+            "input": prompt,
+            "tools": [{"type": "web_search"}],
+            "reasoning": {"effort": "low"}
+        }
+
+        try:
+            response = requests.post(URL, json=payload, headers=headers)
+            if response.status_code == 200:
+                result = response.json()
+                steps = result.get("output", []) if isinstance(result, dict) else result
+
+                final_answer = ""
+                if isinstance(steps, list):
+                    for step in steps:
+                        if isinstance(step, dict) and step.get("type") == "message":
+                            for content_item in step.get("content", []):
+                                if content_item.get("type") == "output_text":
+                                    final_answer = clean_ai_response(content_item.get("text", ""))
+
+                if final_answer:
+                    message_placeholder.markdown(final_answer)
+                    st.session_state.messages.append({"role": "assistant", "content": final_answer})
+
+                    # הצגת הטוקנים
+                    quota = result.get("iac_quota_status", {})
+                    used = quota.get("tokens_used_daily", "לא ידוע")
+                    quota_placeholder.markdown(
+                        f"📊 <span style='color: #008000;'>מספר הטוקנים שנוצלו היום: {used}</span>",
+                        unsafe_allow_html=True)
+                else:
+                    message_placeholder.warning("לא הצלחתי לחלץ תשובה.")
+            else:
+                st.error(f"שגיאת שרת: {response.status_code}")
+        except Exception as e:
+            st.error(f"שגיאה: {e}")
