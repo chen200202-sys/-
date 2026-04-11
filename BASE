@@ -1,0 +1,19 @@
+import requests
+
+API_KEY = "XXX"
+URL = "https://server.iac.ac.il/api/v1/studentapi/chat/completions"
+
+while True:
+    user_text = input("\nשאלו אותי שאלה:  ")
+    if user_text.lower() == "עצירה": break
+
+    payload = {
+        "model": "gpt-5-nano",
+        "messages": [{"role": "user", "content": user_text}]
+    }
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+
+    response = requests.post(URL, json=payload, headers=headers)
+    if response.status_code == 200:
+        ai_message = response.json()["choices"][0]["message"]["content"]
+        print(f"סוכן AI: {ai_message}")
