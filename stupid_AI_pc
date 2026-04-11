@@ -1,6 +1,6 @@
 import requests
 
-API_KEY = "sk-std-1XKR19w99VWY5dPm2TZbuJ-Fx8eti8YDGoBEyXlBVbs"
+API_KEY = "XXXX" #לציין פה את הKEY הרלוונטי
 URL = "https://server.iac.ac.il/api/v1/studentapi/responses"
 headers = {"Authorization": f"Bearer {API_KEY}"}
 
