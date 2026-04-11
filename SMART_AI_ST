@@ -1,0 +1,90 @@
+import streamlit as st
+import requests
+import re
+
+st.set_page_config(page_title="הסוכן החכם של עמיחי וחן", page_icon="💻")
+
+st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>💻 הסוכן החכם של עמיחי וחן</h1>", unsafe_allow_html=True)
+
+st.markdown("---")
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = ""
+
+for message in st.session_state.messages:
+    avatar_icon = "👤" if message["role"] == "user" else "🤖"
+    with st.chat_message(message["role"], avatar=avatar_icon):
+        st.markdown(message["content"])
+
+
+def scrub_sources(text):
+    if not text: return ""
+    # מוחק לינקים בסוגריים (https://...)
+    text = re.sub(r'\(https?://\S+\)', '', text)
+    # מוחק סוגריים מרובעים עם מקורות [1], [wikipedia] וכו'
+    text = re.sub(r'\[.*?\]', '', text)
+    # מוחק שאריות של סוגריים ריקים ()
+    text = re.sub(r'\(\s*\)', '', text)
+    return text.strip()
+
+
+# 4. קלט מהמשתמש
+if prompt := st.chat_input("(: קדימה! אתגרו אותי"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user", avatar="👤"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant", avatar="🤖"):
+        message_placeholder = st.empty()
+        quota_placeholder = st.empty()
+
+        message_placeholder.markdown("🔎 מחפש תשובה בשבילך...")
+
+        API_KEY = "sk-std-1XKR19w99VWY5dPm2TZbuJ-Fx8eti8YDGoBEyXlBVbs"
+        URL = "https://server.iac.ac.il/api/v1/studentapi/responses"
+        headers = {"Authorization": f"Bearer {API_KEY}"}
+
+        full_input = f"{st.session_state.chat_history}\nUser: {prompt}"
+
+        payload = {
+            "model": "gpt-5-nano",
+            "instructions": "ענה בעברית קצרה. אל תציג מקורות, אל תצרף לינקים, ואל תכתוב הערות בסוגריים בסוף. תן רק את התשובה נטו.",
+            "input": full_input,
+            "tools": [{"type": "web_search"}],
+            "reasoning": {"effort": "low"}
+        }
+
+        try:
+            response = requests.post(URL, json=payload, headers=headers)
+            if response.status_code == 200:
+                result = response.json()
+
+                output_list = result.get("output", [])
+                final_text = ""
+
+                for item in output_list:
+                    if isinstance(item, dict) and item.get("type") == "message":
+                        for content_block in item.get("content", []):
+                            if content_block.get("type") == "output_text":
+                                # הפעלת הניקוי על הטקסט שחזר
+                                raw_text = content_block.get("text", "")
+                                final_text = scrub_sources(raw_text)
+
+                if final_text:
+                    message_placeholder.markdown(final_text)
+                    st.session_state.messages.append({"role": "assistant", "content": final_text})
+                    st.session_state.chat_history += f"\nUser: {prompt}\nAI: {final_text}"
+
+                    quota = result.get("iac_quota_status", {})
+                    used = quota.get("tokens_used_daily", "0")
+                    quota_placeholder.markdown(
+                        f"📊 <span style='color: #008000;'>מספר הטוקנים שנוצלו היום: {used}</span>",
+                        unsafe_allow_html=True)
+                else:
+                    message_placeholder.warning("לא הצלחתי למצוא תשובה טקסטואלית.")
+            else:
+                st.error(f"שגיאת שרת: {response.status_code}")
+        except Exception as e:
+            st.error(f"שגיאה בקוד: {e}")
